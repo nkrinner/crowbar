@@ -714,13 +714,37 @@ fi
 
 echo_summary "Starting required services"
 
+# We are stuck with a old version of chef and bunny < 0.9 at the moment.
+# The old bunny gem does not support frames yet so we need to configure
+# rabbitmq accordingly to avoid rejected connections on the chef-server.
+# This can be removed after updating to a newer version of bunny
+# (and chef-server).
+
+# Fix rabbitmq configuration if the existing one is not ok
+if [ -f /etc/rabbitmq/rabbitmq.config ] ; then
+  ## If setting exists with any value
+  if grep  -q '^\s*{frame_max,.*},' /etc/rabbitmq/rabitmq.config
+  then
+    sed -i 's/^\s*{frame_max,.*},/{frame_max, 0},/g' /etc/rabbitmq/rabbitmq.config
+  elif grep  -q '^\s*{frame_max,.*},[^,]' /etc/rabbitmq/rabitmq.config
+    sed -i 's/^\s*{frame_max,.*}[^,]/{frame_max, 0}/g' /etc/rabbitmq/rabbitmq.config
+  else
+  # We did not find the config line yet and assume it has not been configured yet
+  # so let's add the config parameter to the first appearence of '}]', assuming
+  # this is the end of the rabbit config parameter.
+    sed -i 's/^\s*}]/{frame_max, 0}\n\s\s}]/1' /etc/rabbitmq/rabbitmq.config
+  fi
+fi
+
 # Write default RabbitMQ configuration (if the package doesn't provide one).
 if [ ! -f /etc/rabbitmq/rabbitmq.config ] ; then
     cat << EOF > /etc/rabbitmq/rabbitmq.config
 [
  {rabbit,
-  [{disk_free_limit, 50000000}]
- }
+  [
+    {disk_free_limit, 50000000},
+    {frame_max, 0}
+  ]}
 ].
 EOF
 fi
