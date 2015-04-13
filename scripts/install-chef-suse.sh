@@ -420,7 +420,7 @@ fi
 /usr/bin/lscpu  || :
 /bin/df -h  || :
 /usr/bin/free -m || :
-/bin/ls -la /srv/tftpboot/suse-12.*/{repos/,repos/Cloud/,install/} || :
+/bin/ls -la /srv/tftpboot/suse-{11.3,12.0,12.1}/{repos/,repos/{x86_64,ppc64le}/Cloud/,repos/{x86_64,ppc64le}/SLE12-Cloud-Compute/,{x86_64,ppc64le}/install/} || :
 
 if [ -f /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb ]; then
     # The autoyast profile might not exist yet when CROWBAR_FROM_GIT is enabled
@@ -428,26 +428,27 @@ if [ -f /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb 
 fi
 
 check_or_create_ptf_repository () {
-    version="$1"
-    repo="$2"
+  version="$1"
+  arch="$2"
+  repo="$3"
 
-    if skip_check_for_repo "$repo"; then
-        echo "Skipping check for $repo ($version) due to \$REPOS_SKIP_CHECKS"
-    else
-        if ! [ -e "/srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml" ]; then
-            # Only do this for CROWBAR_FROM_GIT, as usually the crowbar package
-            # creates the repo metadata for PTF
-            if [ -n $CROWBAR_FROM_GIT ]; then
-                echo "Creating repo skeleton to make AutoYaST happy."
-                if ! [ -d /srv/tftpboot/suse-$version/repos/$repo ]; then
-                    mkdir /srv/tftpboot/suse-$version/repos/$repo
-                fi
-                /usr/bin/createrepo /srv/tftpboot/suse-$version/repos/$repo
-            else
-                die "$repo ($version) has not been set up correctly; did the crowbar rpm fail to install correctly?"
-            fi
-        fi
-    fi
+  if skip_check_for_repo "$repo"; then
+      echo "Skipping check for $repo ($version) due to \$REPOS_SKIP_CHECKS"
+  else
+      if ! [ -e "/srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml" ]; then
+          # Only do this for CROWBAR_FROM_GIT, as usually the crowbar package
+          # creates the repo metadata for Cloud-PTF
+          if [ -n $CROWBAR_FROM_GIT ]; then
+              echo "Creating repo skeleton to make AutoYaST happy."
+              if ! [ -d /srv/tftpboot/suse-$version/$arch/repos/$repo ]; then
+                  mkdir /srv/tftpboot/suse-$version/$arch/repos/$repo
+              fi
+              /usr/bin/createrepo /srv/tftpboot/suse-$version/$arch/repos/$repo
+          else
+              die "$repo ($version) for $arch has not been set up correctly; did the crowbar rpm fail to install correctly?"
+          fi
+      fi
+  fi
 }
 
 create_gpg_key () {
@@ -476,19 +477,19 @@ EOF
 }
 
 sign_repositories () {
-    version="$1"
-    repo="$2"
+  version="$1"
+  arch="$2"
+  repo="$3"
 
-    create_gpg_key
-    if [ -f /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml ]; then
-        if [ ! -f /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml.asc -o \
-            ! -f /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml.key ]; then
-            echo "Signing $repo ($version) repository"
-            gpg -a --detach-sign /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml
-            gpg -a --export > /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml.key
-        else
-            echo "$repo ($version) repository is already signed"
-        fi
+  create_gpg_key
+  if [ -f /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml ]; then
+    if [ ! -f /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml.asc -o \
+         ! -f /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml.key ]; then
+      echo "Signing $repo ($version) on $arch repository"
+      gpg -a --detach-sign /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml
+      gpg -a --export > /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml.key
+    else
+      echo "$repo ($version) on $arch repository is already signed"
     fi
 }
 
@@ -506,45 +507,51 @@ if [ -z "$(type -t skip_check_for_repo)" ]; then
 fi
 
 # Automatically create symlinks for SMT-mirrored repos if they exist
-cloud_dir=/srv/tftpboot/suse-12.0/repos/SLES12-Pool
-smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-SERVER/12/x86_64/product
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+for arch in x86_64 ppc64le; do
+  cloud_dir=/srv/tftpboot/suse-12.0/repos/$arch/SLES12-Pool
+  smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-SERVER/12/$arch/product
+  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.0/repos/SLES12-Updates
-smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-SERVER/12/x86_64/update
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  cloud_dir=/srv/tftpboot/suse-12.0/repos/$arch/SLES12-Updates
+  smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-SERVER/12/$arch/update
+  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.1/repos/SLES12-SP1-Pool
-smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-SERVER/12-SP1/x86_64/product
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  cloud_dir=/srv/tftpboot/suse-12.1/repos/$arch/SLES12-SP1-Pool
+  smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-SERVER/12-SP1/$arch/product
+  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.1/repos/SLES12-SP1-Updates
-smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-SERVER/12-SP1/x86_64/update
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  cloud_dir=/srv/tftpboot/suse-12.1/repos/$arch/SLES12-SP1-Updates
+  smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-SERVER/12-SP1/$arch/update
+  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.1/repos/SUSE-OpenStack-Cloud-6-Pool
-smt_dir=/srv/www/htdocs/repo/SUSE/Products/OpenStack-Cloud/6/x86_64/product
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  cloud_dir=/srv/tftpboot/suse-12.1/repos/$arch/SUSE-OpenStack-Cloud-6-Pool
+  smt_dir=/srv/www/htdocs/repo/SUSE/Products/OpenStack-Cloud/6/$arch/product
+  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.1/repos/SUSE-OpenStack-Cloud-6-Updates
-smt_dir=/srv/www/htdocs/repo/SUSE/Updates/OpenStack-Cloud/6/x86_64/update
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  cloud_dir=/srv/tftpboot/suse-12.1/repos/$arch/SUSE-OpenStack-Cloud-6-Updates
+  smt_dir=/srv/www/htdocs/repo/SUSE/Updates/OpenStack-Cloud/6/$arch/update
+  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.1/repos/SLE12-SP1-HA-Pool
-smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-HA/12-SP1/x86_64/product
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  # SES is x86_64 only
+  # FIXME: Check if HA is also only for x86_64
+  if [ $arch == x86_64 ]; then
+    cloud_dir=/srv/tftpboot/suse-12.0/repos/$arch/SUSE-Enterprise-Storage-2-Pool
+    smt_dir=/srv/www/htdocs/repo/SUSE/Products/Storage/2/$arch/product
+    test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.1/repos/SLE12-SP1-HA-Updates
-smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-HA/12-SP1/x86_64/update
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+    cloud_dir=/srv/tftpboot/suse-12.0/repos/$arch/SUSE-Enterprise-Storage-2-Updates
+     smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/2/$arch/update
+    test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-Enterprise-Storage-2-Pool
-smt_dir=/srv/www/htdocs/repo/SUSE/Products/Storage/2/x86_64/product
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+    cloud_dir=/srv/tftpboot/suse-12.1/repos/$arch/SLE12-SP1-HA-Pool
+    smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-HA/12-SP1/$arch/product
+    test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-Enterprise-Storage-2-Updates
-smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/2/x86_64/update
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+    cloud_dir=/srv/tftpboot/suse-12.1/repos/$arch/SLE12-SP1-HA-Updates
+    smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-HA/12-SP1/$arch/update
+    test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  fi
+done
 
 # FIXME: repos that we cannot check yet:
 #   Cloud 6 Pool / Updates: non-existing repos
@@ -561,6 +568,7 @@ fi
 
 if ! is_ses; then
     # Checks for SLE12 SP1 medias
+    # FIXME: Do we need to consider architecture here?
     MEDIA=/srv/tftpboot/suse-12.1/install
 
     if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
@@ -582,15 +590,21 @@ if ! is_ses; then
             #1558be86e7354d31e71e7c8c2574031a
     fi
 
-    check_repo_tag repo    12.1 SLES12-SP1-Pool                     'obsproduct://build.suse.de/SUSE:SLE-12-SP1:GA/SLES/12.1/POOL/x86_64'
-    check_repo_tag repo    12.1 SLES12-SP1-Updates                  'obsrepository://build.suse.de/SUSE:Updates:SLE-SERVER:12-SP1:x86_64/update'
-    check_repo_tag repo    12.1 SUSE-OpenStack-Cloud-6-Pool         'obsproduct://build.suse.de/SUSE:SLE-12:SP1:Products:Cloud6/suse-openstack-cloud/6/POOL/x86_64' $REQUIRE_CLOUD
-    check_repo_tag repo    12.1 SUSE-OpenStack-Cloud-6-Updates      'obsrepository://build.suse.de/SUSE:Updates:OpenStack-Cloud:6:x86_64/update' $REQUIRE_CLOUD
-    check_repo_tag repo    12.1 SLE12-SP1-HA-Pool                   'obsproduct://build.suse.de/SUSE:SLE-12-SP1:GA/sle-ha/12.1/POOL/x86_64' 'false'
-    check_repo_tag repo    12.1 SLE12-SP1-HA-Updates                'obsrepository://build.suse.de/SUSE:Updates:SLE-HA:12-SP1:x86_64/update' 'false'
+    for arch in x86_64 ppc64le; do
+      check_repo_tag repo    12.1 $arch SLES12-SP1-Pool                     "obsproduct://build.suse.de/SUSE:SLE-12-SP1:GA/SLES/12.1/POOL/$arch"
+      check_repo_tag repo    12.1 $arch SLES12-SP1-Updates                  "obsrepository://build.suse.de/SUSE:Updates:SLE-SERVER:12-SP1:$arch/update"
+      check_repo_tag repo    12.1 $arch SUSE-OpenStack-Cloud-6-Pool         "obsproduct://build.suse.de/SUSE:SLE-12:SP1:Products:Cloud6/suse-openstack-cloud/6/POOL/$arch" $REQUIRE_CLOUD
+      check_repo_tag repo    12.1 $arch SUSE-OpenStack-Cloud-6-Updates      'obsrepository://build.suse.de/SUSE:Updates:OpenStack-Cloud:6:x86_64/update' $REQUIRE_CLOUD
+      # FIXME: Check if HA is only available for x86_64
+      if [ $arch == "x86_64" ] ; then
+        check_repo_tag repo    12.1 $arch SLE12-SP1-HA-Pool                   'obsproduct://build.suse.de/SUSE:SLE-12-SP1:GA/sle-ha/12.1/POOL/x86_64' 'false'
+        check_repo_tag repo    12.1 $arch SLE12-SP1-HA-Updates                'obsrepository://build.suse.de/SUSE:Updates:SLE-HA:12-SP1:x86_64/update' 'false'
+      fi
+   done
 fi
 
 # Checks for SLE12 media (for SES)
+# FIXME: Do we need to check for different architectures here?
 MEDIA=/srv/tftpboot/suse-12.0/install
 if [ -e $MEDIA/boot/x86_64/common ]; then
     check_media_content \
@@ -618,11 +632,17 @@ if [ -z "$CROWBAR_FROM_GIT" ]; then
     fi
 fi
 
-check_or_create_ptf_repository 12.0 PTF
-check_or_create_ptf_repository 12.1 PTF
-# Currently we only sign the PTF repository
-sign_repositories 12.0 PTF
-sign_repositories 12.1 PTF
+
+check_or_create_ptf_repository 12.0 x86_64 SLE12-Cloud-Compute-PTF
+check_or_create_ptf_repository 12.0 ppc64le SLE12-Cloud-Compute-PTF
+check_or_create_ptf_repository 12.1 x86_64 SLE12-Cloud-Compute-PTF
+check_or_create_ptf_repository 12.1 ppc64le SLE12-Cloud-Compute-PTF
+
+# Currently we only sign the Cloud-PTF repository
+sign_repositories 12.0 x86_64 SLE12-Cloud-Compute-PTF
+sign_repositories 12.0 ppc64le SLE12-Cloud-Compute-PTF
+sign_repositories 12.1 x86_64 SLE12-Cloud-Compute-PTF
+sign_repositories 12.1 ppc64le SLE12-Cloud-Compute-PTF
 
 # Setup helper for git
 # --------------------
