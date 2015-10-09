@@ -491,6 +491,7 @@ sign_repositories () {
     else
       echo "$repo ($version) on $arch repository is already signed"
     fi
+  fi
 }
 
 for repos_check in \
