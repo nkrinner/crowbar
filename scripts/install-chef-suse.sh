@@ -570,7 +570,7 @@ fi
 if ! is_ses; then
     # Checks for SLE12 SP1 medias
     # FIXME: Do we need to consider architecture here?
-    MEDIA=/srv/tftpboot/suse-12.1/install
+    MEDIA=/srv/tftpboot/suse-12.1/x86_64/install
 
     if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
         echo "Detected SUSE OpenStack Cloud Deps media."
@@ -587,7 +587,7 @@ if ! is_ses; then
     if ! is_ses; then
         check_media_content \
             Cloud \
-            /srv/tftpboot/suse-12.1/repos/Cloud \
+            /srv/tftpboot/suse-12.1/x86_64/repos/Cloud \
             #1558be86e7354d31e71e7c8c2574031a
     fi
 
