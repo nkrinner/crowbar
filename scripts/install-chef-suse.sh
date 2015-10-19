@@ -589,6 +589,12 @@ if ! is_ses; then
         # Checks for SLE12 SP1 medias
         MEDIA=/srv/tftpboot/suse-12.1/$arch/install
 
+        # Only x86_64 is truly mandatory; other architectures are only checked
+        # if they exist
+        if [ ! -f $MEDIA/content -a $arch != "x86_64" ]; then
+            continue
+        fi
+
         if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
             echo "Detected SUSE OpenStack Cloud Deps media."
             REPOS_SKIP_CHECKS+=" SLES12-SP1-Pool SLES12-SP1-Updates"
