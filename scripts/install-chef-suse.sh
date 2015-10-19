@@ -630,10 +630,10 @@ if [ -e $MEDIA/boot/x86_64/common ]; then
 
     check_media_links $MEDIA
     for arch in $supported_arches_ses; do
-        check_repo_tag repo    12.0 $arch SLES12-Pool                       'obsproduct://build.suse.de/SUSE:SLE-12:GA/SLES/12/POOL/x86_64'
-        check_repo_tag repo    12.0 $arch SLES12-Updates                    'obsrepository://build.suse.de/SUSE:Updates:SLE-SERVER:12:x86_64/update'
-        check_repo_tag repo    12.0 $arch SUSE-Enterprise-Storage-2-Pool    'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:SES2/ses/2/POOL/x86_64' $REQUIRE_STORAGE
-        check_repo_tag repo    12.0 $arch SUSE-Enterprise-Storage-2-Updates 'obsrepository://build.suse.de/SUSE:Updates:Storage:2:x86_64/update' $REQUIRE_STORAGE
+        check_repo_tag repo    12.0 $arch SLES12-Pool                       "obsproduct://build.suse.de/SUSE:SLE-12:GA/SLES/12/POOL/$arch" $REQUIRE_STORAGE
+        check_repo_tag repo    12.0 $arch SLES12-Updates                    "obsrepository://build.suse.de/SUSE:Updates:SLE-SERVER:12:$arch/update" $REQUIRE_STORAGE
+        check_repo_tag repo    12.0 $arch SUSE-Enterprise-Storage-2-Pool    "obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:SES2/ses/2/POOL/$arch" $REQUIRE_STORAGE
+        check_repo_tag repo    12.0 $arch SUSE-Enterprise-Storage-2-Updates "obsrepository://build.suse.de/SUSE:Updates:Storage:2:$arch/update" $REQUIRE_STORAGE
     done
 fi
 
