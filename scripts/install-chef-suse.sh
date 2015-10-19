@@ -621,21 +621,22 @@ if ! is_ses; then
 fi
 
 # Checks for SLE12 media (for SES, so x86_64-only)
-MEDIA=/srv/tftpboot/suse-12.0/install
-if [ -e $MEDIA/boot/x86_64/common ]; then
-    check_media_content \
-        SLES12 \
-        $MEDIA \
-        b52c0f2b41a6a10d49cc89edcdc1b13d
+for arch in $supported_arches_ses; do
+    MEDIA=/srv/tftpboot/suse-12.0/$arch/install
+    if [ -e $MEDIA/boot/$arch/common ]; then
+        check_media_content \
+            SLES12 \
+            $MEDIA \
+            b52c0f2b41a6a10d49cc89edcdc1b13d
 
-    check_media_links $MEDIA
-    for arch in $supported_arches_ses; do
+        check_media_links $MEDIA
+
         check_repo_tag repo    12.0 $arch SLES12-Pool                       "obsproduct://build.suse.de/SUSE:SLE-12:GA/SLES/12/POOL/$arch" $REQUIRE_STORAGE
         check_repo_tag repo    12.0 $arch SLES12-Updates                    "obsrepository://build.suse.de/SUSE:Updates:SLE-SERVER:12:$arch/update" $REQUIRE_STORAGE
         check_repo_tag repo    12.0 $arch SUSE-Enterprise-Storage-2-Pool    "obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:SES2/ses/2/POOL/$arch" $REQUIRE_STORAGE
         check_repo_tag repo    12.0 $arch SUSE-Enterprise-Storage-2-Updates "obsrepository://build.suse.de/SUSE:Updates:Storage:2:$arch/update" $REQUIRE_STORAGE
-    done
-fi
+    fi
+done
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
     pattern=patterns-cloud-admin
